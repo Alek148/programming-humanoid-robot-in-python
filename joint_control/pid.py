@@ -34,10 +34,11 @@ class PIDController(object):
         self.e1 = np.zeros(size)
         self.e2 = np.zeros(size)
         # ADJUST PARAMETERS BELOW
+        # I can't adjust them better, because the graph in pid_test.py is not working. For some time I tried to circumvent it, but it didn't work, so I just tuned everything based on visuals from SimSpark (which is very imprecise, but the principle should be the same - increasing reaction speed while decreasing oscillations and overshooting)
         delay = 0
-        self.Kp = 0
-        self.Ki = 0
-        self.Kd = 0
+        self.Kp = 30 # Could be much less (10-20) for better fluidity, but then probably reaction is slower and other parts wouldn't be needed. Critical point is around 50
+        self.Ki = 0.6
+        self.Kd = 0.1
         self.y = deque(np.zeros(size), maxlen=delay + 1)
 
     def set_delay(self, delay):
@@ -53,6 +54,22 @@ class PIDController(object):
         @return control signal
         '''
         # YOUR CODE HERE
+        #print("TARGET: ")
+        #print(target)
+        #print("SENSOR: ")
+        #print(target)
+        
+        # PID calculations
+        e0 = target - sensor
+
+        t, p, i, d = self.dt, self.Kp, self.Ki, self.Kd # For readability's sake
+
+        self.u += ( p + i*t + d/t ) * e0
+        self.u -= ( p + 2*d/t ) * self.e1
+        self.u += d/t * self.e2
+
+        self.e2 = self.e1
+        self.e1 = e0
 
         return self.u
 

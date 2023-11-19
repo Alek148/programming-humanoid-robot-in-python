@@ -7,7 +7,8 @@
 
 
 from recognize_posture import PostureRecognitionAgent
-
+from keyframes import hello, rightBackToStand, rightBellyToStand, wipe_forehead
+from time import time
 
 class StandingUpAgent(PostureRecognitionAgent):
     def think(self, perception):
@@ -16,6 +17,7 @@ class StandingUpAgent(PostureRecognitionAgent):
 
     def standing_up(self):
         posture = self.posture
+        print(posture)
         # YOUR CODE HERE
 
 
@@ -31,6 +33,7 @@ class TestStandingUpAgent(StandingUpAgent):
         self.stiffness_on_off_time = 0
         self.stiffness_on_cycle = 10  # in seconds
         self.stiffness_off_cycle = 3  # in seconds
+        self.last_posture = None
 
     def think(self, perception):
         action = super(TestStandingUpAgent, self).think(perception)
@@ -41,6 +44,23 @@ class TestStandingUpAgent(StandingUpAgent):
             action.stiffness = {j: 1 for j in self.joint_names}  # turn on joints
         if time_now - self.stiffness_on_off_time > self.stiffness_on_cycle + self.stiffness_off_cycle:
             self.stiffness_on_off_time = time_now
+
+        if time() - self.time_begin >= 10: # I could make a proper test for keyframe animation ending, but this already works
+            self.last_posture = None
+
+        # Simple ~state machine
+        if self.posture == "Back" and self.last_posture != "Back":
+            self.last_posture = "Back"
+            self.keyframes = rightBackToStand()
+            self.begin_motion()
+        elif self.posture == "Belly" and self.last_posture != "Belly":
+            self.last_posture = "Belly"
+            self.keyframes = rightBellyToStand()
+            self.begin_motion()
+        elif self.posture == "Stand" and self.last_posture != "Stand":
+            self.last_posture = "Stand"
+            self.keyframes = wipe_forehead(None)
+            self.begin_motion()
 
         return action
 

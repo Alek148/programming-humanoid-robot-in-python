@@ -22,6 +22,8 @@
 
 from pid import PIDAgent
 from keyframes import hello
+from scipy import interpolate
+from time import time
 
 
 class AngleInterpolationAgent(PIDAgent):
@@ -32,18 +34,45 @@ class AngleInterpolationAgent(PIDAgent):
                  sync_mode=True):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
+        self.begin_motion()
+    
+    def begin_motion(self):
+        self.time_begin = time()
 
     def think(self, perception):
         target_joints = self.angle_interpolation(self.keyframes, perception)
-        target_joints['RHipYawPitch'] = target_joints['LHipYawPitch'] # copy missing joint in keyframes
+        if 'LHipYawPitch' in target_joints:
+            target_joints['RHipYawPitch'] = target_joints['LHipYawPitch'] # copy missing joint in keyframes
         self.target_joints.update(target_joints)
         return super(AngleInterpolationAgent, self).think(perception)
 
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
+        current_time = time() - self.time_begin
+        names, times, keys = keyframes
 
-        return target_joints
+        # Key dimensions: joint, key, value_type
+        #print(len(keys), len(keys[0]), len(keys[0][0]))
+        keyframe_angles = [[key[0] for key in joints] for joints in keys] # Ingore Bezier data
+        
+        #print(keyframe_angles[0])
+        #print(times[0])
+
+        target_angles = []
+        for angle_list, time_list in zip(keyframe_angles, times):
+            time_list = [0] + time_list + [time_list[-1] + 0.1] 
+            angle_list = [angle_list[0]] + angle_list + [angle_list[-1]]
+            
+            angle = angle_list[-1]
+            if current_time < time_list[-2]:
+                # Simple cubic spline interpolation
+                coefficients = interpolate.splrep(time_list, angle_list)
+                angle = interpolate.splev(current_time, coefficients)
+            
+            target_angles.append(angle)
+
+        return dict(zip(names, target_angles))
 
 if __name__ == '__main__':
     agent = AngleInterpolationAgent()
