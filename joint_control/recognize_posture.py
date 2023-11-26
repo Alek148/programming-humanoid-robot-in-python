@@ -14,8 +14,8 @@ from angle_interpolation import AngleInterpolationAgent
 from keyframes import hello, rightBackToStand
 import pickle
 from os import listdir
-ROBOT_POSE_DATA_DIR = 'robot_pose_data'
-ROBOT_POSE_CLF = 'robot_pose.pkl'
+ROBOT_POSE_DATA_DIR = '../joint_control/robot_pose_data' # A quick hack for Excercise 3 to work
+ROBOT_POSE_CLF = '../joint_control/robot_pose.pkl'
 
 class PostureRecognitionAgent(AngleInterpolationAgent):
     def __init__(self, simspark_ip='localhost',

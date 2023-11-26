@@ -19,7 +19,8 @@
 # add PYTHONPATH
 import os
 import sys
-sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'joint_control'))
+from autograd.numpy import sin, cos, pi
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'joint_control')))
 
 from numpy.matlib import matrix, identity
 
@@ -35,11 +36,46 @@ class ForwardKinematicsAgent(PostureRecognitionAgent):
         super(ForwardKinematicsAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.transforms = {n: identity(4) for n in self.joint_names}
 
-        # chains defines the name of chain and joints of the chain
-        self.chains = {'Head': ['HeadYaw', 'HeadPitch']
-                       # YOUR CODE HERE
-                       }
-
+        self.chains = {
+            'Head' : ['HeadYaw', 'HeadPitch'],
+            'LArm' : ['LShoulderPitch', 'LShoulderRoll', 'LElbowYaw', 'LElbowRoll', 'LWristYaw'],#, 'LHand'],
+            'LLeg' : ['LHipYawPitch', 'LHipRoll', 'LHipPitch', 'LKneePitch', 'LAnklePitch', 'LAnkleRoll'],
+            'RLeg' : ['RHipYawPitch', 'RHipRoll', 'RHipPitch', 'RKneePitch', 'RAnklePitch', 'RAnkleRoll'],
+            'RArm' : ['RShoulderPitch', 'RShoulderRoll', 'RElbowYaw', 'RElbowRoll', 'RWristYaw'],#, 'RHand']
+        }
+        
+        alpha, a, d, theta = 0, 0, 0, 0 # For readability
+        self.transform_elements = { # All coordinates in the previous joint's coordinate system
+            'HeadYaw'           : (alpha, a, d, theta),
+            'HeadPitch'         : (alpha -pi/2, a, d, theta -pi/2),
+            
+            'LShoulderPitch'    : (alpha -pi/2, a, d, theta),
+            'LShoulderRoll'     : (alpha +pi/2, a, d, theta),
+            'LElbowYaw'         : (alpha +pi/2, a, d +0.105, theta), #TODO: Add elbow offset
+            'LElbowRoll'        : (alpha -pi/2, a, d, theta),
+            'LWristYaw'         : (alpha +pi/2, a, d +0.055_95, theta),
+        
+            'RShoulderPitch'    : (alpha -pi/2, a, d, theta),
+            'RShoulderRoll'     : (alpha +pi/2, a, d, theta),
+            'RElbowYaw'         : (alpha +pi/2, a, d +0.105, theta),
+            'RElbowRoll'        : (alpha -pi/2, a, d, theta),
+            'RWristYaw'         : (alpha +pi/2, a, d +0.055_95, theta),
+        
+            'LHipYawPitch'      : (alpha -3/4*pi, a, d, theta -pi/2),
+            'LHipRoll'          : (alpha -pi/2, a, d, theta +pi/4),
+            'LHipPitch'         : (alpha +pi/2, a, d, theta),
+            'LKneePitch'        : (alpha, a -0.100, d, theta),
+            'LAnklePitch'       : (alpha, a -0.102_9, d, theta),
+            'LAnkleRoll'        : (alpha -pi/2, a, d, theta),
+            
+            'RHipYawPitch'      : (alpha -pi/4, a, d, theta -pi/2),
+            'RHipRoll'          : (alpha -pi/2, a, d, theta -pi/4),
+            'RHipPitch'         : (alpha +pi/2, a, d, theta),
+            'RKneePitch'        : (alpha, a -0.100, d, theta),
+            'RAnklePitch'       : (alpha, a -0.102_9, d, theta),
+            'RAnkleRoll'        : (alpha -pi/2, a, d, theta),
+        }
+        
     def think(self, perception):
         self.forward_kinematics(perception.joint)
         return super(ForwardKinematicsAgent, self).think(perception)
@@ -52,10 +88,19 @@ class ForwardKinematicsAgent(PostureRecognitionAgent):
         :return: transformation
         :rtype: 4x4 matrix
         '''
-        T = identity(4)
-        # YOUR CODE HERE
+        alpha, a, d, theta = self.transform_elements[joint_name]
+        
+        theta += joint_angle
 
-        return T
+        sa, ca = sin(alpha), cos(alpha)
+        st, ct = sin(theta), cos(theta)
+
+        return matrix([
+            [   ct,     st,    0,      a],
+            [st*ca,  ct*ca,  -sa,  -sa*d],
+            [st*sa,  ct*sa,   ca,   ca*d],
+            [    0,      0,    0,      1],
+        ])
 
     def forward_kinematics(self, joints):
         '''forward kinematics
@@ -65,9 +110,13 @@ class ForwardKinematicsAgent(PostureRecognitionAgent):
         for chain_joints in self.chains.values():
             T = identity(4)
             for joint in chain_joints:
-                angle = joints[joint]
+                if joint == "LWristYaw" or joint == "RWristYaw":
+                    angle = 0
+                else:
+                    angle = joints[joint]
                 Tl = self.local_trans(joint, angle)
                 # YOUR CODE HERE
+                T = T @ Tl
 
                 self.transforms[joint] = T
 
