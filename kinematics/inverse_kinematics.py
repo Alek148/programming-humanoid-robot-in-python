@@ -15,6 +15,7 @@ from numpy.matlib import identity
 import autograd.numpy as np
 from autograd.numpy import pi
 import autograd
+from time import time
 
 class InverseKinematicsAgent(ForwardKinematicsAgent):
     def inverse_kinematics(self, effector_name, transform):
@@ -80,11 +81,11 @@ class InverseKinematicsAgent(ForwardKinematicsAgent):
         # YOUR CODE HERE
         angles_prior = dict(self.perception.joint)
         angles_post = self.inverse_kinematics(effector_name, transform)
-        print(angles_prior, angles_post)
         chain = self.chains[effector_name]
-        times = [[0.0, 1.0] for _ in range(len(chain))]
+        times = [[0.1, 1.0] for _ in range(len(chain))] # time = 0.0 is added automatically
         keys = [[[angles_prior[joint], [], []], [angles_post[id], [], []]] for id, joint in enumerate(chain)]
         self.keyframes = (chain, times, keys) # the result joint angles have to fill in
+        self.begin_motion()
 
 if __name__ == '__main__':
     agent = InverseKinematicsAgent()
